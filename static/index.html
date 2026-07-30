@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fraud Detection Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #161d2e;
+    --panel-border: #232c42;
+    --text: #e6e9f0;
+    --muted: #8993a8;
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.12);
+    --safe: #22c55e;
+    --safe-bg: rgba(34, 197, 94, 0.10);
+    --accent: #5b8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  header h1 {
+    margin: 0 0 4px 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 20px 32px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-card .label {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-card .value {
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .stat-card.danger .value { color: var(--danger); }
+
+  .controls {
+    padding: 0 32px 12px 32px;
+    display: flex;
+    gap: 8px;
+  }
+  .controls button {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .controls button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  main {
+    padding: 0 32px 40px 32px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  tbody td {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: rgba(91, 140, 255, 0.06); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.fraud { background: var(--danger-bg); color: var(--danger); }
+  .badge.safe { background: var(--safe-bg); color: var(--safe); }
+
+  .risk-bar-track {
+    width: 100px;
+    height: 6px;
+    background: #232c42;
+    border-radius: 999px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .risk-bar-fill { height: 100%; border-radius: 999px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 460px;
+    max-width: 90vw;
+  }
+  .modal h2 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+  }
+  .modal .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .feature-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 13px;
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-impact {
+    font-weight: 600;
+    font-family: monospace;
+  }
+  .feature-impact.pos { color: var(--danger); }
+  .feature-impact.neg { color: var(--safe); }
+  .close-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛡️ Fraud Detection Dashboard</h1>
+  <p>Live-style monitoring feed &middot; XGBoost model &middot; SHAP explainability</p>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="controls">
+  <button class="active" data-filter="all">All Transactions</button>
+  <button data-filter="high">Flagged Risk</button>
+  <button data-filter="low">Low Risk</button>
+</div>
+
+<main>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Time (hrs)</th>
+        <th>Amount</th>
+        <th>Risk Score</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="tx-body"></tbody>
+  </table>
+</main>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">Transaction #</h2>
+    <div class="sub" id="modal-sub"></div>
+    <div id="modal-features"></div>
+    <div class="note">
+      Features (V1-V28) are PCA-anonymized by the original dataset provider to protect
+      cardholder privacy - exact real-world meaning is not disclosed, but their relative
+      influence on this prediction is shown above.
+    </div>
+    <button class="close-btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+const API = "";
+
+async function loadStats() {
+  const res = await fetch(`${API}/api/stats`);
+  const s = await res.json();
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card">
+      <div class="label">Total Transactions</div>
+      <div class="value">${s.total_transactions}</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="label">Flagged as Fraud</div>
+      <div class="value">${s.flagged_as_fraud}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Actual Fraud (Ground Truth)</div>
+      <div class="value">${s.actual_fraud_in_sample}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Risk Score</div>
+      <div class="value">${(s.average_risk_score * 100).toFixed(1)}%</div>
+    </div>
+  `;
+}
+
+async function loadTransactions(filter = "all") {
+  const res = await fetch(`${API}/api/transactions?limit=100&risk=${filter}`);
+  const data = await res.json();
+  const body = document.getElementById('tx-body');
+  body.innerHTML = data.transactions.map(t => {
+    const pct = (t.risk_score * 100).toFixed(1);
+    const isFraud = t.predicted_fraud === 1;
+    const barColor = isFraud ? 'var(--danger)' : 'var(--safe)';
+    return `
+      <tr onclick="openModal(${t.id})">
+        <td>#${t.id}</td>
+        <td>${t.time_hours}</td>
+        <td>$${t.amount.toFixed(2)}</td>
+        <td>
+          <span class="risk-bar-track">
+            <span class="risk-bar-fill" style="width:${pct}%; background:${barColor}"></span>
+          </span>
+          ${pct}%
+        </td>
+        <td><span class="badge ${isFraud ? 'fraud' : 'safe'}">${isFraud ? 'Flagged' : 'Normal'}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+let currentFilter = "all";
+document.querySelectorAll('.controls button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    loadTransactions(currentFilter);
+  });
+});
+
+async function openModal(id) {
+  const res = await fetch(`${API}/api/transactions/${id}`);
+  const t = await res.json();
+
+  document.getElementById('modal-title').innerText = `Transaction #${t.id}`;
+  document.getElementById('modal-sub').innerText =
+    `Amount: $${t.amount.toFixed(2)} · Time: ${t.time_hours}h · Risk: ${(t.risk_score*100).toFixed(1)}%`;
+
+  document.getElementById('modal-features').innerHTML = t.top_features.map(f => {
+    const isPos = f.impact > 0;
+    return `
+      <div class="feature-row">
+        <span>${f.feature}</span>
+        <span class="feature-impact ${isPos ? 'pos' : 'neg'}">
+          ${isPos ? '+' : ''}${f.impact} ${isPos ? '(→ fraud)' : '(→ normal)'}
+        </span>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+loadStats();
+loadTransactions();
+</script>
+
+</body>
+</html>
